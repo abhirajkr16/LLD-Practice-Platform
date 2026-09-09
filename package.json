@@ -1,0 +1,35 @@
+{
+  "name": "lld-practice-platform",
+  "version": "1.0.0",
+  "description": "A focused web practice platform that enables intermediate software engineers to practice Low-Level Design (LLD) on interview-standard problems and receive objective, qualitative AI evaluation grounded in their submitted design evidence.",
+  "main": "server/src/server.js",
+  "scripts": {
+    "start": "node server/src/server.js",
+    "dev": "nodemon server/src/server.js",
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhirajkr16/LLD-Practice-Platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/abhirajkr16/LLD-Practice-Platform/issues"
+  },
+  "homepage": "https://github.com/abhirajkr16/LLD-Practice-Platform#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
+    "vitest": "^5.0.0"
+  }
+}
