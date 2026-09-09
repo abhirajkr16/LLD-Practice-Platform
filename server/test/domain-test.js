@@ -1,10 +1,19 @@
-const Problem = require("../../src/domain/problem/Problem");
-const Attempt = require("../../src/domain/attempt/Attempt");
-const DesignEvidence = require("../../src/domain/submission/DesignEvidence");
-const Submission = require("../../src/domain/submission/Submission");
-const Evaluation = require("../../src/domain/evaluation/Evaluation");
-const FeedbackReport = require("../../src/domain/feedback/FeedbackReport");
-const EvaluationFailure = require("../../src/domain/evaluation/EvaluationFailure");
+// test/domain-test.js
+
+
+const Problem = require("../src/domain/problem/Problem");
+
+const Attempt = require("../src/domain/attempt/Attempt");
+
+const DesignEvidence = require("../src/domain/submission/DesignEvidence");
+
+const Submission = require("../src/domain/submission/Submission");
+
+const Evaluation = require("../src/domain/evaluation/Evaluation");
+
+const FeedbackReport = require("../src/domain/feedback/FeedbackReport");
+
+const EvaluationFailure = require("../src/domain/evaluation/EvaluationFailure");
 
 // ============================================================================
 // STEP 1: CREATE A PROBLEM
@@ -18,8 +27,7 @@ console.log();
 const parkingLotProblem = new Problem({
     id: "parking-lot-001",
     title: "Design a Parking Lot System",
-    statement:
-        "Design a parking lot that handles vehicle entry, exit, and payment.",
+    statement: "Design a parking lot that handles vehicle entry, exit, and payment.",
     difficulty: "medium",
 
     requirements: [
@@ -60,8 +68,6 @@ console.log("ID:", parkingLotProblem.getId());
 console.log("Title:", parkingLotProblem.getTitle());
 console.log("Difficulty:", parkingLotProblem.getDifficulty());
 console.log("Requirements:", parkingLotProblem.getRequirements());
-console.log("Constraints:", parkingLotProblem.getConstraints());
-console.log("Edge Cases:", parkingLotProblem.getEdgeCases());
 console.log();
 
 // ============================================================================
