@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
 import { getAttempt, retryEvaluation } from "../../api/api";
-
 import "./Evaluation.css";
 
 function Evaluation() {
@@ -33,6 +31,7 @@ function Evaluation() {
     }
   }
 
+  /* retry evaluation start */
   async function handleRetry() {
     try {
       setRetrying(true);
@@ -40,13 +39,52 @@ function Evaluation() {
 
       const data = await retryEvaluation(attemptId);
 
-      setAttempt(data);
+      if (data) {
+        setAttempt(data);
+      } else {
+        await loadAttempt();
+      }
     } catch (err) {
-      setError(err.message || "Unable to retry evaluation.");
+      setError(
+        err.message || "Unable to retry evaluation."
+      );
     } finally {
       setRetrying(false);
     }
   }
+  /* retry evaluation end */
+
+  /* navigation start */
+  function goToProblem() {
+    const problemId =
+      attempt?.problemId ||
+      attempt?.attempt?.problemId;
+
+    if (problemId) {
+      navigate(`/problems/${problemId}`);
+      return;
+    }
+
+    navigate("/");
+  }
+
+  function goToAttemptHistory() {
+    const problemId =
+      attempt?.problemId ||
+      attempt?.attempt?.problemId;
+
+    if (problemId) {
+      navigate(`/attempts?problemId=${problemId}`);
+      return;
+    }
+
+    navigate("/attempts");
+  }
+
+  function goToRevision() {
+    navigate(`/attempts/${attemptId}/revise`);
+  }
+  /* navigation end */
 
   if (loading) {
     return (
@@ -58,7 +96,7 @@ function Evaluation() {
     );
   }
 
-  if (error) {
+  if (error && !attempt) {
     return (
       <main className="page-container">
         <div className="state-message error-state">
@@ -76,28 +114,26 @@ function Evaluation() {
     return null;
   }
 
-  /*
-   * The API may return the attempt directly or inside an
-   * "attempt" property. Supporting both keeps the page
-   * tolerant of the backend response shape.
-   */
   const evaluation = attempt.evaluation;
   const feedback = evaluation?.feedback;
+
+  const canRetry =
+    evaluation?.status === "evaluation_failed";
 
   return (
     <main className="page-container evaluation-page">
 
-      {/* Back navigation */}
+      {/* evaluation navigation start */}
       <button
         className="back-button"
-        onClick={() => navigate("/")}
+        onClick={goToProblem}
       >
-        ← Back to problems
+        ← Back to problem
       </button>
+      {/* evaluation navigation end */}
 
-      {/* Header */}
+      {/* evaluation header start */}
       <section className="evaluation-header">
-
         <div>
           <p className="eyebrow">
             Design Evaluation
@@ -108,8 +144,8 @@ function Evaluation() {
           </h1>
 
           <p className="evaluation-subtitle">
-            Review how your solution performed across the main
-            LLD evaluation dimensions.
+            Review how your solution performed across
+            the main LLD evaluation dimensions.
           </p>
         </div>
 
@@ -122,10 +158,18 @@ function Evaluation() {
             {evaluation?.evaluatorKind || "Evaluator"}
           </span>
         </div>
-
       </section>
+      {/* evaluation header end */}
 
-      {/* Overall assessment */}
+      {/* error message start */}
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
+      {/* error message end */}
+
+      {/* overall assessment start */}
       {feedback?.overallAssessment && (
         <section className="assessment-card">
           <p className="detail-label">
@@ -137,11 +181,11 @@ function Evaluation() {
           </p>
         </section>
       )}
+      {/* overall assessment end */}
 
-      {/* Dimension findings */}
+      {/* dimension findings start */}
       {feedback?.dimensionFindings?.length > 0 && (
         <section className="feedback-section">
-
           <div className="section-heading">
             <div>
               <h2>Evaluation dimensions</h2>
@@ -153,18 +197,17 @@ function Evaluation() {
           </div>
 
           <div className="dimension-list">
-
             {feedback.dimensionFindings.map((finding) => (
               <article
                 className="dimension-card"
                 key={finding.dimension}
               >
-
                 <div className="dimension-top">
-
                   <div>
                     <p className="dimension-name">
-                      {formatDimension(finding.dimension)}
+                      {formatDimension(
+                        finding.dimension
+                      )}
                     </p>
 
                     <span className="dimension-level">
@@ -175,7 +218,6 @@ function Evaluation() {
                   <span className="classification">
                     {finding.classification}
                   </span>
-
                 </div>
 
                 <p className="dimension-message">
@@ -184,7 +226,6 @@ function Evaluation() {
 
                 {finding.evidence && (
                   <div className="evidence">
-
                     <p className="evidence-title">
                       Evidence
                     </p>
@@ -192,19 +233,16 @@ function Evaluation() {
                     <EvidenceContent
                       evidence={finding.evidence}
                     />
-
                   </div>
                 )}
-
               </article>
             ))}
-
           </div>
-
         </section>
       )}
+      {/* dimension findings end */}
 
-      {/* Priority findings */}
+      {/* priority findings start */}
       {feedback?.priorityFindings?.length > 0 && (
         <FeedbackGroup
           title="Priority findings"
@@ -213,8 +251,9 @@ function Evaluation() {
           variant="priority"
         />
       )}
+      {/* priority findings end */}
 
-      {/* Secondary findings */}
+      {/* secondary findings start */}
       {feedback?.secondaryFindings?.length > 0 && (
         <FeedbackGroup
           title="Secondary findings"
@@ -222,8 +261,9 @@ function Evaluation() {
           findings={feedback.secondaryFindings}
         />
       )}
+      {/* secondary findings end */}
 
-      {/* Optional findings */}
+      {/* optional findings start */}
       {feedback?.optionalFindings?.length > 0 && (
         <FeedbackGroup
           title="Optional findings"
@@ -231,11 +271,11 @@ function Evaluation() {
           findings={feedback.optionalFindings}
         />
       )}
+      {/* optional findings end */}
 
-      {/* Evaluation failure */}
+      {/* evaluation failure start */}
       {evaluation?.failure && (
         <section className="failure-card">
-
           <p className="detail-label">
             Evaluation failure
           </p>
@@ -244,43 +284,55 @@ function Evaluation() {
             {evaluation.failure.message ||
               "The evaluation could not be completed."}
           </p>
-
         </section>
       )}
+      {/* evaluation failure end */}
 
-      {/* Actions */}
+      {/* evaluation actions start */}
       <section className="evaluation-actions">
 
         <button
           className="secondary-button"
-          onClick={() => navigate("/")}
+          onClick={goToProblem}
         >
-          Back to problems
+          Back to problem
         </button>
 
         <button
-          className="primary-button"
-          onClick={handleRetry}
-          disabled={retrying}
+          className="secondary-button"
+          onClick={goToAttemptHistory}
         >
-          {retrying ? "Retrying..." : "Retry evaluation"}
+          Attempt history
         </button>
 
+        <button
+          className="secondary-button"
+          onClick={goToRevision}
+        >
+          Revise design
+        </button>
+
+        {canRetry && (
+          <button
+            className="primary-button"
+            onClick={handleRetry}
+            disabled={retrying}
+          >
+            {retrying
+              ? "Retrying..."
+              : "Retry evaluation"}
+
+            {!retrying && <span>→</span>}
+          </button>
+        )}
+
       </section>
+      {/* evaluation actions end */}
 
     </main>
   );
 }
 
-/*
- * Converts backend names such as:
- *
- * requirement_coverage
- *
- * into:
- *
- * Requirement Coverage
- */
 function formatDimension(value) {
   if (!value) return "";
 
@@ -288,31 +340,30 @@ function formatDimension(value) {
     .split("_")
     .map(
       (word) =>
-        word.charAt(0).toUpperCase() + word.slice(1)
+        word.charAt(0).toUpperCase() +
+        word.slice(1)
     )
     .join(" ");
 }
 
-
-/*
- * Renders evidence without assuming every dimension
- * has the same evidence structure.
- */
 function EvidenceContent({ evidence }) {
   return (
     <div className="evidence-content">
-
       {Object.entries(evidence).map(([key, value]) => (
-        <div className="evidence-item" key={key}>
-
+        <div
+          className="evidence-item"
+          key={key}
+        >
           <span className="evidence-key">
             {formatDimension(key)}
           </span>
 
           {Array.isArray(value) ? (
             <ul>
-              {value.map((item) => (
-                <li key={item}>{item}</li>
+              {value.map((item, index) => (
+                <li key={`${key}-${index}`}>
+                  {item}
+                </li>
               ))}
             </ul>
           ) : (
@@ -320,19 +371,12 @@ function EvidenceContent({ evidence }) {
               {String(value)}
             </span>
           )}
-
         </div>
       ))}
-
     </div>
   );
 }
 
-
-/*
- * Reusable section for priority / secondary /
- * optional findings.
- */
 function FeedbackGroup({
   title,
   description,
@@ -340,8 +384,9 @@ function FeedbackGroup({
   variant = "",
 }) {
   return (
-    <section className={`feedback-section ${variant}`}>
-
+    <section
+      className={`feedback-section ${variant}`}
+    >
       <div className="section-heading">
         <div>
           <h2>{title}</h2>
@@ -351,15 +396,12 @@ function FeedbackGroup({
       </div>
 
       <div className="finding-list">
-
         {findings.map((finding, index) => (
           <article
             className="finding-card"
             key={`${finding.dimension}-${index}`}
           >
-
             <div className="finding-top">
-
               <span className="finding-dimension">
                 {formatDimension(finding.dimension)}
               </span>
@@ -367,18 +409,14 @@ function FeedbackGroup({
               <span className="finding-level">
                 {finding.level}
               </span>
-
             </div>
 
             <p>
               {finding.message}
             </p>
-
           </article>
         ))}
-
       </div>
-
     </section>
   );
 }

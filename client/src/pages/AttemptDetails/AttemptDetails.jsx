@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import {
   getAttempt,
   retryEvaluation,
 } from "../../api/api";
+
 import "./AttemptDetails.css";
 
 function AttemptDetails() {
@@ -19,12 +21,15 @@ function AttemptDetails() {
     loadAttempt();
   }, [attemptId]);
 
+  /* load attempt start here */
+
   async function loadAttempt() {
     try {
       setLoading(true);
       setError("");
 
       const data = await getAttempt(attemptId);
+
       setAttempt(data);
     } catch (err) {
       setError(err.message || "Unable to load attempt.");
@@ -33,14 +38,16 @@ function AttemptDetails() {
     }
   }
 
+  /* retry evaluation start here */
+
   async function handleRetry() {
     try {
       setRetrying(true);
       setError("");
 
-      const result = await retryEvaluation(attemptId);
+      const data = await retryEvaluation(attemptId);
 
-      setAttempt(result);
+      setAttempt(data);
     } catch (err) {
       setError(err.message || "Unable to retry evaluation.");
     } finally {
@@ -48,19 +55,19 @@ function AttemptDetails() {
     }
   }
 
-  function handleBack() {
-    navigate("/problems");
-  }
+  /* loading state start here */
 
   if (loading) {
     return (
       <main className="page-container">
         <div className="state-message">
-          <p>Loading evaluation...</p>
+          <p>Loading attempt...</p>
         </div>
       </main>
     );
   }
+
+  /* error state start here */
 
   if (error && !attempt) {
     return (
@@ -68,219 +75,336 @@ function AttemptDetails() {
         <div className="state-message error-state">
           <p>{error}</p>
 
-          <button onClick={handleBack}>
-            Back to problems
+          <button onClick={loadAttempt}>
+            Try again
           </button>
         </div>
       </main>
     );
   }
 
-  const evaluation = attempt?.evaluation;
-  const feedback = evaluation?.feedback;
+  if (!attempt) {
+    return null;
+  }
+
+  const attemptData =
+    attempt.attempt || attempt;
+
+  const submission =
+    attempt.submission ||
+    attemptData.submission;
+
+  const evaluation =
+    attempt.evaluation ||
+    attemptData.evaluation;
+
+  const feedback =
+    evaluation?.feedback;
+
+  const designEvidence =
+    submission?.designEvidence || {};
+
+  /* evaluation status start here */
+
+  const evaluationStatus =
+    evaluation?.status || "";
+
+  const evaluationFailed =
+    evaluationStatus === "failed" ||
+    evaluationStatus === "evaluation_failed";
+
+  const feedbackAvailable =
+    evaluationStatus === "feedback_available";
+
+  const hasPredecessor =
+    Boolean(attemptData.predecessorAttemptId);
 
   return (
-    <main className="page-container">
-      <section className="attempt-details">
+    <main className="page-container attempt-details-page">
+      <button
+        className="back-button"
+        onClick={() => navigate("/")}
+      >
+        ← Back to problems
+      </button>
 
-        {/* evaluation header start here */}
-        <header className="attempt-header">
-          <button
-            className="back-button"
-            onClick={handleBack}
-          >
-            ← Back to problems
-          </button>
+      <section className="attempt-header">
+        <div>
+          <p className="eyebrow">
+            Attempt Details
+          </p>
 
-          <div className="attempt-heading">
+          <h1>
+            {attemptData.id
+              ? `Attempt ${attemptData.id.slice(0, 8)}`
+              : "Attempt"}
+          </h1>
+
+          <p className="attempt-subtitle">
+            Review the submitted design and evaluation status.
+          </p>
+        </div>
+
+        <div className="attempt-meta">
+          <span className="status-badge">
+            {evaluationStatus || "Submitted"}
+          </span>
+        </div>
+      </section>
+
+      <section className="attempt-card">
+        <div className="attempt-info-grid">
+          <div className="info-item">
+            <span className="detail-label">
+              Attempt ID
+            </span>
+
+            <span className="detail-value">
+              {attemptData.id || "Unavailable"}
+            </span>
+          </div>
+
+          <div className="info-item">
+            <span className="detail-label">
+              Problem ID
+            </span>
+
+            <span className="detail-value">
+              {attemptData.problemId || "Unavailable"}
+            </span>
+          </div>
+
+          <div className="info-item">
+            <span className="detail-label">
+              Created
+            </span>
+
+            <span className="detail-value">
+              {formatDate(attemptData.createdAt)}
+            </span>
+          </div>
+
+          <div className="info-item">
+            <span className="detail-label">
+              Revision
+            </span>
+
+            <span className="detail-value">
+              {hasPredecessor
+                ? "Revised attempt"
+                : "Original attempt"}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="design-summary">
+        <div className="section-heading">
+          <div>
+            <h2>
+              Submitted design
+            </h2>
+
+            <p>
+              The design evidence submitted for this attempt.
+            </p>
+          </div>
+        </div>
+
+        <EvidenceSection
+          title="Entities"
+          value={designEvidence.entities}
+        />
+
+        <EvidenceSection
+          title="Responsibilities"
+          value={designEvidence.responsibilities}
+        />
+
+        <EvidenceSection
+          title="Relationships"
+          value={designEvidence.relationships}
+        />
+
+        <EvidenceSection
+          title="Behaviors"
+          value={designEvidence.behaviors}
+        />
+
+        <EvidenceSection
+          title="Design Decisions"
+          value={designEvidence.designDecisions}
+        />
+
+        <EvidenceSection
+          title="Interfaces"
+          value={designEvidence.interfaces}
+        />
+
+        <EvidenceSection
+          title="Assumptions"
+          value={designEvidence.assumptions}
+        />
+      </section>
+
+      {evaluation && (
+        <section className="evaluation-summary">
+          <div className="section-heading">
             <div>
               <p className="eyebrow">
                 Evaluation
               </p>
 
-              <h1>
-                Design Evaluation
-              </h1>
+              <h2>
+                Evaluation status
+              </h2>
 
-              <p className="attempt-id">
-                Attempt: {attempt?.id}
+              <p>
+                Current status of the evaluator for this attempt.
               </p>
             </div>
+          </div>
 
-            <span className={`evaluation-status ${evaluation?.status}`}>
-              {evaluation?.status || "unknown"}
+          <div className="evaluation-status-card">
+            <span className="status-badge">
+              {evaluationStatus || "Unknown"}
+            </span>
+
+            <span className="evaluator-type">
+              {evaluation.evaluatorKind || "Evaluator"}
             </span>
           </div>
-        </header>
 
-        {/* evaluation summary start here */}
-        {feedback && (
-          <section className="evaluation-summary">
-            <h2>Overall Assessment</h2>
+          {feedback?.overallAssessment && (
+            <div className="assessment-card">
+              <p className="detail-label">
+                Overall assessment
+              </p>
 
-            <p>
-              {feedback.overallAssessment}
-            </p>
-          </section>
+              <p className="assessment-text">
+                {feedback.overallAssessment}
+              </p>
+            </div>
+          )}
+
+          {evaluation.failure && (
+            <div className="failure-card">
+              <p className="detail-label">
+                Evaluation failure
+              </p>
+
+              <p>
+                {evaluation.failure.message ||
+                  "The evaluation could not be completed."}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
+
+      <section className="attempt-actions">
+        <button
+          className="secondary-button"
+          onClick={() => navigate("/")}
+        >
+          Back to problems
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={() => navigate("/attempts")}
+        >
+          Attempt history
+        </button>
+
+        {feedbackAvailable && (
+          <>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                navigate(`/attempts/${attemptId}`)
+              }
+            >
+              View evaluation
+            </button>
+
+            <button
+              className="secondary-button"
+              onClick={() =>
+                navigate(`/attempts/${attemptId}/revise`)
+              }
+            >
+              Revise design
+            </button>
+          </>
         )}
 
-        {/* dimension findings start here */}
-        {feedback?.dimensionFindings?.length > 0 && (
-          <section className="findings-section">
-            <div className="section-heading">
-              <div>
-                <h2>Evaluation Feedback</h2>
-
-                <p>
-                  Review how your design performed across the main LLD
-                  evaluation dimensions.
-                </p>
-              </div>
-            </div>
-
-            <div className="findings-list">
-              {feedback.dimensionFindings.map((finding) => (
-                <article
-                  className="finding-card"
-                  key={finding.dimension}
-                >
-                  <div className="finding-header">
-                    <h3>
-                      {formatDimension(finding.dimension)}
-                    </h3>
-
-                    <span className="finding-level">
-                      {finding.level}
-                    </span>
-                  </div>
-
-                  <p className="finding-message">
-                    {finding.message}
-                  </p>
-
-                  {finding.evidence && (
-                    <div className="finding-evidence">
-                      <p className="detail-label">
-                        Evidence
-                      </p>
-
-                      {Object.entries(finding.evidence).map(
-                        ([key, value]) => (
-                          <div
-                            className="evidence-item"
-                            key={key}
-                          >
-                            <strong>
-                              {formatDimension(key)}:
-                            </strong>
-
-                            {Array.isArray(value) ? (
-                              <ul>
-                                {value.map((item) => (
-                                  <li key={item}>
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span>
-                                {String(value)}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* priority findings start here */}
-        {feedback?.priorityFindings?.length > 0 && (
-          <section className="findings-section">
-            <div className="section-heading">
-              <div>
-                <h2>Priority Findings</h2>
-
-                <p>
-                  These are the most important areas to improve.
-                </p>
-              </div>
-            </div>
-
-            <div className="findings-list">
-              {feedback.priorityFindings.map((finding, index) => (
-                <article
-                  className="finding-card priority-card"
-                  key={`${finding.dimension}-${index}`}
-                >
-                  <div className="finding-header">
-                    <h3>
-                      {formatDimension(finding.dimension)}
-                    </h3>
-
-                    <span className="finding-level">
-                      {finding.level}
-                    </span>
-                  </div>
-
-                  <p className="finding-message">
-                    {finding.message}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* retry evaluation start here */}
-        {error && (
-          <div className="form-error">
-            {error}
-          </div>
-        )}
-
-        <div className="attempt-actions">
+        {evaluationFailed && (
           <button
-            className="secondary-button"
-            onClick={handleBack}
-          >
-            Back to problems
-          </button>
-
-          <button
-            className="start-button"
+            className="primary-button"
             onClick={handleRetry}
             disabled={retrying}
           >
-            <span>
-              {retrying
-                ? "Retrying..."
-                : "Retry evaluation"}
-            </span>
+            {retrying
+              ? "Retrying..."
+              : "Retry evaluation"}
 
             <span>→</span>
           </button>
-        </div>
-
+        )}
       </section>
     </main>
   );
 }
 
-function formatDimension(value) {
-  if (!value) {
-    return "";
+/* evidence section start here */
+
+function EvidenceSection({ title, value }) {
+  if (!value || value.length === 0) {
+    return null;
   }
 
-  return value
-    .replace(/([A-Z])/g, " $1")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-    .trim();
+  const items = Array.isArray(value)
+    ? value
+    : [value];
+
+  return (
+    <div className="evidence-section">
+      <h3>
+        {title}
+      </h3>
+
+      <ul>
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* date formatting start here */
+
+function formatDate(value) {
+  if (!value) {
+    return "Unavailable";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
 }
 
 export default AttemptDetails;

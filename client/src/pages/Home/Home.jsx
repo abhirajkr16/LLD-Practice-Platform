@@ -23,6 +23,9 @@ function Home() {
 
       const data = await getProblems();
 
+      console.log("PROBLEMS FROM API:", data);
+      console.log("PROBLEM COUNT:", data.length);
+      
       setProblems(data);
     } catch (err) {
       setError(err.message || "Unable to load problems.");

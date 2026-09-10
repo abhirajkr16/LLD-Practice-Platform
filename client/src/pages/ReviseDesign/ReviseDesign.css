@@ -1,0 +1,295 @@
+/* revise design start here */
+
+.revise-design {
+    max-width: 920px;
+}
+
+/* revision header start here */
+
+.revision-header {
+    margin-bottom: 40px;
+}
+
+.revision-header h1 {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: clamp(38px, 5vw, 52px);
+    line-height: 1.1;
+    letter-spacing: -1.6px;
+}
+
+.revision-intro {
+    max-width: 760px;
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+/* feedback summary start here */
+
+.feedback-summary {
+    margin-bottom: 28px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.feedback-summary-header {
+    margin-bottom: 16px;
+}
+
+.feedback-summary-header h2 {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: 20px;
+}
+
+.detail-label {
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.overall-assessment {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+/* priority findings start here */
+
+.priority-findings {
+    margin-bottom: 22px;
+}
+
+.priority-findings h3 {
+    margin: 0 0 12px;
+    color: var(--text-strong);
+    font-size: 15px;
+}
+
+.finding {
+    padding: 14px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+}
+
+.finding+.finding {
+    margin-top: 10px;
+}
+
+.finding-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.finding-top strong {
+    color: var(--text-strong);
+    font-size: 13px;
+}
+
+.finding-top span {
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.finding p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* dimension list start here */
+
+.dimension-list {
+    display: grid;
+    gap: 10px;
+}
+
+.dimension-card {
+    padding: 15px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+}
+
+.dimension-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.dimension-top strong {
+    color: var(--text-strong);
+    font-size: 13px;
+}
+
+.dimension-card p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.finding-level {
+    font-size: 12px;
+}
+
+.finding-level.needs-improvement {
+    color: var(--danger);
+}
+
+.finding-level.adequate {
+    color: var(--accent);
+}
+
+.finding-level.strong {
+    color: var(--success);
+}
+
+/* design section start here */
+
+.design-section {
+    padding: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.section-heading {
+    margin-bottom: 32px;
+}
+
+.section-heading h2 {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: 21px;
+}
+
+.section-heading p:last-child {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* form field start here */
+
+.form-field+.form-field {
+    margin-top: 28px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-strong);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.field-help {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.form-field textarea {
+    width: 100%;
+    min-height: 150px;
+    box-sizing: border-box;
+    padding: 14px;
+    resize: vertical;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    outline: none;
+    color: var(--text);
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    transition:
+        border-color 150ms ease,
+        background-color 150ms ease;
+}
+
+.form-field textarea:focus {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+}
+
+/* form error start here */
+
+.form-error {
+    margin-top: 28px;
+    padding: 14px;
+    background: rgba(220, 100, 100, 0.08);
+    border: 1px solid rgba(220, 100, 100, 0.2);
+    border-radius: 7px;
+    color: var(--danger);
+    font-size: 13px;
+}
+
+/* submit area start here */
+
+.submit-area {
+    margin-top: 32px;
+}
+
+.submit-button {
+    width: 100%;
+    margin-top: 0;
+}
+
+.submit-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* responsive start here */
+
+@media (max-width: 720px) {
+    .revise-design {
+        max-width: none;
+    }
+
+    .revision-header h1 {
+        font-size: 36px;
+        letter-spacing: -1px;
+    }
+
+    .revision-intro {
+        font-size: 16px;
+    }
+
+    .feedback-summary {
+        padding: 20px;
+    }
+
+    .design-section {
+        padding: 20px;
+    }
+
+    .dimension-top,
+    .finding-top {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+}

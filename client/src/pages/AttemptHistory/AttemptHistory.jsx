@@ -1,42 +1,38 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { getProblem, getProblemAttempts } from "../../api/api";
+import { useNavigate } from "react-router-dom";
+
+import { getProblemAttempts } from "../../api/api";
+
 import "./AttemptHistory.css";
 
 function AttemptHistory() {
-  const { problemId } = useParams();
   const navigate = useNavigate();
 
-  const [problem, setProblem] = useState(null);
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     loadAttempts();
-  }, [problemId]);
+  }, []);
 
   async function loadAttempts() {
     try {
       setLoading(true);
       setError("");
 
-      const [problemData, attemptsData] = await Promise.all([
-        getProblem(problemId),
-        getProblemAttempts(problemId),
-      ]);
+      const data = await getProblemAttempts("parking-lot-001");
 
-      setProblem(problemData);
+      const attemptList =
+        Array.isArray(data)
+          ? data
+          : data?.attempts ||
+            data?.items ||
+            [];
 
-      if (Array.isArray(attemptsData)) {
-        setAttempts(attemptsData);
-      } else if (Array.isArray(attemptsData?.attempts)) {
-        setAttempts(attemptsData.attempts);
-      } else {
-        setAttempts([]);
-      }
+      setAttempts(attemptList);
     } catch (err) {
-      setError(err.message || "Unable to load attempts.");
+      setError(err.message || "Unable to load attempt history.");
     } finally {
       setLoading(false);
     }
@@ -46,15 +42,19 @@ function AttemptHistory() {
     navigate(`/attempts/${attemptId}`);
   }
 
-  function startNewAttempt() {
-    navigate(`/problems/${problemId}/design`);
+  function openDetails(attemptId) {
+    navigate(`/attempts/${attemptId}/details`);
+  }
+
+  function openRevision(attemptId) {
+    navigate(`/attempts/${attemptId}/revise`);
   }
 
   if (loading) {
     return (
       <main className="page-container">
         <div className="state-message">
-          <p>Loading attempts...</p>
+          <p>Loading attempt history...</p>
         </div>
       </main>
     );
@@ -66,8 +66,8 @@ function AttemptHistory() {
         <div className="state-message error-state">
           <p>{error}</p>
 
-          <button onClick={() => navigate("/problems")}>
-            Back to problems
+          <button onClick={loadAttempts}>
+            Try again
           </button>
         </div>
       </main>
@@ -75,128 +75,148 @@ function AttemptHistory() {
   }
 
   return (
-    <main className="page-container">
-      <section className="attempt-history">
+    <main className="page-container attempt-history-page">
+      <button
+        className="back-button"
+        onClick={() => navigate("/")}
+      >
+        ← Back to problems
+      </button>
 
-        {/* attempt history header start here */}
-        <header className="history-header">
+      <header className="attempt-history-header">
+        <p className="eyebrow">
+          Practice History
+        </p>
+
+        <h1>
+          Attempt history
+        </h1>
+
+        <p>
+          Review your previous LLD design attempts and continue
+          improving your solutions.
+        </p>
+      </header>
+
+      {attempts.length === 0 ? (
+        <section className="state-message empty-state">
+          <p>
+            No attempts found for this problem.
+          </p>
+
           <button
-            className="back-button"
-            onClick={() => navigate(`/problems/${problemId}`)}
+            onClick={() =>
+              navigate("/problems/parking-lot-001")
+            }
           >
-            ← Back to problem
+            View problem
           </button>
+        </section>
+      ) : (
+        <section className="attempt-list">
+          {attempts.map((attempt, index) => {
+            const attemptId =
+              attempt.id ||
+              attempt.attemptId;
 
-          <div className="history-heading">
-            <div>
-              <p className="eyebrow">Practice History</p>
+            const evaluation =
+              attempt.evaluation;
 
-              <h1>Attempts</h1>
+            const feedback =
+              evaluation?.feedback;
 
-              {problem && (
-                <p className="history-description">
-                  {problem.title}
-                </p>
-              )}
-            </div>
+            const createdAt =
+              attempt.createdAt;
 
-            <button
-              className="start-button new-attempt-button"
-              onClick={startNewAttempt}
-            >
-              <span>New attempt</span>
-              <span>→</span>
-            </button>
-          </div>
-        </header>
+            const status =
+              evaluation?.status ||
+              attempt.status ||
+              "Submitted";
 
-        {/* attempts list start here */}
-        {attempts.length === 0 ? (
-          <div className="empty-attempts">
-            <h2>No attempts yet</h2>
+            const assessment =
+              feedback?.overallAssessment ||
+              "Evaluation feedback is available for this attempt.";
 
-            <p>
-              You have not submitted a design for this problem yet.
-            </p>
-
-            <button
-              className="start-button"
-              onClick={startNewAttempt}
-            >
-              <span>Start designing</span>
-              <span>→</span>
-            </button>
-          </div>
-        ) : (
-          <section className="attempts-section">
-            <div className="section-heading">
-              <div>
-                <h2>Your attempts</h2>
-
-                <p>
-                  Open an attempt to review its evaluation and feedback.
-                </p>
-              </div>
-
-              <span className="attempt-count">
-                {attempts.length}{" "}
-                {attempts.length === 1 ? "attempt" : "attempts"}
-              </span>
-            </div>
-
-            <div className="attempt-list">
-              {attempts.map((attempt, index) => (
-                <article
-                  className="attempt-card"
-                  key={attempt.id}
-                  onClick={() => openAttempt(attempt.id)}
-                >
-                  <div className="attempt-card-main">
-                    <div className="attempt-number">
+            return (
+              <article
+                className="attempt-card"
+                key={attemptId || index}
+              >
+                <div className="attempt-card-top">
+                  <div>
+                    <span className="attempt-number">
                       Attempt {attempts.length - index}
-                    </div>
-
-                    <div className="attempt-meta">
-                      <span>
-                        {formatDate(attempt.createdAt)}
-                      </span>
-
-                      {attempt.predecessorAttemptId && (
-                        <span className="revision-label">
-                          Revision
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="attempt-card-right">
-                    <span className="attempt-arrow">
-                      →
                     </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
 
-      </section>
+                    <h2>
+                      {attemptId
+                        ? `Attempt ${attempts.length - index}`
+                        : "Design attempt"}
+                    </h2>
+                  </div>
+
+                  <span className="attempt-status">
+                    {status}
+                  </span>
+                </div>
+
+                {createdAt && (
+                  <p className="attempt-date">
+                    {formatDate(createdAt)}
+                  </p>
+                )}
+
+                <p className="attempt-assessment">
+                  {assessment}
+                </p>
+
+                <div className="attempt-actions">
+                  {attemptId && (
+                    <>
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          openAttempt(attemptId)
+                        }
+                      >
+                        Evaluation
+                      </button>
+
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          openDetails(attemptId)
+                        }
+                      >
+                        Details
+                      </button>
+
+                      <button
+                        className="primary-button"
+                        onClick={() =>
+                          openRevision(attemptId)
+                        }
+                      >
+                        Revise
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      )}
     </main>
   );
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "Unknown date";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
     return value;
   }
-
-  return date.toLocaleString();
 }
 
 export default AttemptHistory;
