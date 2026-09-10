@@ -8,6 +8,9 @@ const SQLiteEvaluationRepository = require("../infrastructure/repositories/SQLit
 
 const SQLiteUnitOfWork = require("../infrastructure/database/SQLiteUnitOfWork");
 
+const DefaultRubricPolicy = require("../infrastructure/evaluation/DefaultRubricPolicy");
+const DeterministicEvaluator = require("../infrastructure/evaluation/DeterministicEvaluator");
+
 const ListProblems = require("./use-cases/ListProblems");
 const GetProblem = require("./use-cases/GetProblem");
 const GetProblemAttempts = require("./use-cases/GetProblemAttempts");
@@ -35,6 +38,12 @@ const unitOfWork = new SQLiteUnitOfWork({
   db,
 });
 
+const rubricPolicy = new DefaultRubricPolicy();
+
+const evaluator = new DeterministicEvaluator({
+  rubricPolicy,
+});
+
 const listProblems = new ListProblems({
   problemRepository,
 });
@@ -53,8 +62,9 @@ const submitDesign = new SubmitDesign({
   attemptRepository,
   submissionRepository,
   evaluationRepository,
-  idGenerator: { generate: (prefix) => `${prefix}-${crypto.randomUUID()}` },
+  idGenerator: () => crypto.randomUUID(),
   unitOfWork,
+  evaluator,
 });
 
 const getAttempt = new GetAttempt({
@@ -67,6 +77,8 @@ const retryEvaluation = new RetryEvaluation({
   attemptRepository,
   submissionRepository,
   evaluationRepository,
+  evaluator,
+  problemRepository,
 });
 
 module.exports = {

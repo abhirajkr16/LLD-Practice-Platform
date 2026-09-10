@@ -1,8 +1,3 @@
-const Attempt = require("../../domain/attempt/Attempt");
-const DesignEvidence = require("../../domain/submission/DesignEvidence");
-const Submission = require("../../domain/submission/Submission");
-const Evaluation = require("../../domain/evaluation/Evaluation");
-
 /**
  * Handles submission of a learner's LLD design.
  *
@@ -11,6 +6,13 @@ const Evaluation = require("../../domain/evaluation/Evaluation");
  *
  * It does not perform the actual evaluation itself.
  */
+
+const Attempt = require("../../domain/attempt/Attempt");
+const DesignEvidence = require("../../domain/submission/DesignEvidence");
+const Submission = require("../../domain/submission/Submission");
+const Evaluation = require("../../domain/evaluation/Evaluation");
+const SubmissionValidator = require("../../domain/submission/SubmissionValidator");
+
 class SubmitDesign {
   constructor({
     problemRepository,
@@ -19,71 +21,121 @@ class SubmitDesign {
     evaluationRepository,
     idGenerator,
     unitOfWork,
+    evaluator,
   }) {
-    this._problemRepository = problemRepository;
-    this._attemptRepository = attemptRepository;
-    this._submissionRepository = submissionRepository;
-    this._evaluationRepository = evaluationRepository;
-    this._idGenerator = idGenerator;
-    this._unitOfWork = unitOfWork;
+    this.problemRepository = problemRepository;
+    this.attemptRepository = attemptRepository;
+    this.submissionRepository = submissionRepository;
+    this.evaluationRepository = evaluationRepository;
+    this.idGenerator = idGenerator;
+    this.unitOfWork = unitOfWork;
+    this.evaluator = evaluator;
   }
 
   async execute({ problemId, designEvidence, predecessorAttemptId = null }) {
-    if (typeof problemId !== "string" || problemId.trim().length === 0) {
-      throw new Error("problemId is required");
-    }
-
-    const problem = await this._problemRepository.findById(problemId.trim());
+    const problem = await this.problemRepository.findById(problemId);
 
     if (!problem) {
-      throw new Error("Problem not found");
+      const error = new Error("Problem not found");
+      error.code = "NOT_FOUND";
+      throw error;
     }
 
     const evidence = new DesignEvidence(designEvidence);
 
-    if (predecessorAttemptId !== null) {
-      const predecessor =
-        await this._attemptRepository.findById(predecessorAttemptId);
+    const validator = new SubmissionValidator();
+    validator.validate(evidence);
 
-      if (!predecessor) {
-        throw new Error("Predecessor attempt not found");
+    if (predecessorAttemptId) {
+      const previousAttempt =
+        await this.attemptRepository.findById(predecessorAttemptId);
+
+      if (!previousAttempt) {
+        const error = new Error("Predecessor attempt not found");
+        error.code = "INVALID_PREDECESSOR_ATTEMPT";
+        throw error;
       }
 
-      if (predecessor.getProblemId() !== problemId.trim()) {
-        throw new Error("Predecessor attempt belongs to another problem");
+      if (previousAttempt.getProblemId() !== problemId) {
+        const error = new Error(
+          "Predecessor attempt belongs to another problem",
+        );
+        error.code = "INVALID_PREDECESSOR_ATTEMPT";
+        throw error;
       }
     }
 
+    const generateId = (type) => {
+      if (typeof this.idGenerator === "function") {
+        return this.idGenerator(type);
+      }
+      if (this.idGenerator && typeof this.idGenerator.generate === "function") {
+        return this.idGenerator.generate(type);
+      }
+      return `${type}-${Date.now()}`;
+    };
+
     const attempt = new Attempt({
-      id: this._idGenerator.generate("attempt"),
-      problemId: problemId.trim(),
+      id: generateId("attempt"),
+      problemId,
       predecessorAttemptId,
     });
 
     const submission = new Submission({
-      id: this._idGenerator.generate("submission"),
+      id: generateId("submission"),
       attemptId: attempt.getId(),
       designEvidence: evidence,
     });
 
     const evaluation = new Evaluation({
-      id: this._idGenerator.generate("evaluation"),
+      id: generateId("evaluation"),
       attemptId: attempt.getId(),
       submissionId: submission.getId(),
-      evaluatorKind: "default",
+      evaluatorKind: "deterministic",
+      status: "evaluating",
     });
 
-    await this._unitOfWork.transaction(() => {
-      this._attemptRepository.save(attempt);
-      this._submissionRepository.save(submission);
-      this._evaluationRepository.save(evaluation);
+    await this.unitOfWork.transaction(() => {
+      this.attemptRepository.save(attempt);
+      this.submissionRepository.save(submission);
+      this.evaluationRepository.save(evaluation);
     });
 
-    return {
-      attempt: attempt.toJSON(),
-      submission: submission.toJSON(),
-      evaluation: evaluation.toJSON(),
-    };
+    if (!this.evaluator) {
+      return {
+        attempt: attempt.toJSON(),
+        submission: submission.toJSON(),
+        evaluation: evaluation.toJSON(),
+      };
+    }
+
+    try {
+      const feedback = this.evaluator.evaluate(problem, submission);
+
+      const completedEvaluation = evaluation.complete(feedback);
+
+      this.evaluationRepository.save(completedEvaluation);
+
+      return {
+        attempt: attempt.toJSON(),
+        submission: submission.toJSON(),
+        evaluation: completedEvaluation.toJSON(),
+      };
+    } catch (error) {
+      const failedEvaluation = evaluation.fail({
+        code: "EVALUATION_FAILED",
+        message: error.message,
+        details: null,
+      });
+
+      this.evaluationRepository.save(failedEvaluation);
+
+      return {
+        attempt: attempt.toJSON(),
+        submission: submission.toJSON(),
+        evaluation: failedEvaluation.toJSON(),
+      };
+    }
   }
 }
 

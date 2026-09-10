@@ -61,6 +61,74 @@ describe("API Layer", () => {
     expect(response.body.submission).toBeDefined();
     expect(response.body.evaluation).toBeDefined();
 
-    expect(response.body.evaluation.status).toBe("evaluating");
+    expect(response.body.evaluation.status).toBe("feedback_available");
+  });
+  it("should reject an incomplete submission", async () => {
+    const response = await request(app)
+      .post("/api/problems/parking-lot-001/submissions")
+      .send({
+        designEvidence: {
+          entities: ["ParkingLot"],
+          responsibilities: [],
+          relationships: [],
+          behaviors: [],
+          designDecisions: [],
+          interfaces: [],
+          assumptions: [],
+        },
+      });
+
+    expect(response.status).toBe(422);
+
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.code).toBe("INVALID_REQUEST");
+  });
+  it("should return an attempt after a successful submission", async () => {
+    const submitResponse = await request(app)
+      .post("/api/problems/parking-lot-001/submissions")
+      .send({
+        designEvidence: {
+          entities: ["ParkingLot", "ParkingFloor", "ParkingSpot", "Vehicle"],
+          responsibilities: [
+            "ParkingLot manages floors",
+            "ParkingFloor manages parking spots",
+            "ParkingSpot tracks occupancy",
+            "Vehicle represents the vehicle",
+          ],
+          relationships: [
+            "ParkingLot contains ParkingFloor",
+            "ParkingFloor contains ParkingSpot",
+          ],
+          behaviors: [
+            "Park vehicle",
+            "Remove vehicle",
+            "Calculate parking fee",
+          ],
+          designDecisions: ["Pricing is separated from parking allocation"],
+          interfaces: ["PricingStrategy"],
+          assumptions: ["A vehicle occupies one parking spot"],
+        },
+      });
+
+    expect(submitResponse.status).toBe(201);
+
+    const attemptId = submitResponse.body.attempt.id;
+
+    const response = await request(app).get(`/api/attempts/${attemptId}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.attempt.id).toBe(attemptId);
+    expect(response.body.submission).toBeDefined();
+    expect(response.body.evaluation).toBeDefined();
+
+    expect(response.body.evaluation.status).toBe("feedback_available");
+  });
+
+  afterAll(() => {
+    const db = require("../src/database/connection");
+    db.prepare("DELETE FROM evaluations").run();
+    db.prepare("DELETE FROM submissions").run();
+    db.prepare("DELETE FROM attempts").run();
   });
 });
