@@ -81,7 +81,7 @@ class Submission {
         return {
             id: this._id,
             attemptId: this._attemptId,
-            designEvidence: this._designEvidence,
+            designEvidence: this._designEvidence.toJSON(),
             createdAt: this._createdAt.toISOString()
         };
     }
