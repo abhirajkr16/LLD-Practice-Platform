@@ -1,155 +1,211 @@
+# AI Usage
 
+## Purpose
 
-Where AI Was Used
+AI tools were used as development assistants during the project for architecture exploration, implementation support, debugging, and review.
+The final architecture, feature scope, and implementation decisions were reviewed against the assignment requirements and tested in the working application. AI suggestions were treated as inputs, not as final decisions.
 
-1. Backend Architecture
+## 1. Deterministic Evaluation Instead of an LLM-Only Evaluator
 
-Used to reason through how to structure the backend into domain, application, infrastructure and API layers, and review implementation details for repositories, use-cases, controllers, routes.
+### Problem
 
-What was suggested: Split the project into a domain, application, infrastructure and API layer while still being a single Node.js application or split the app into more microservices with independent deployments.
+The platform needs to evaluate learner LLD submissions and return useful, repeatable feedback.
 
-Accepted: A modular monolith with clear layering, but no services split.
+### AI-assisted consideration
 
-Why: The assignment explicitly allows for a simple monolithic application, and focuses on implementing the LLD/domain design. Microservices would add complexity without a clear benefit to the learning flow, considering the two-day prototype window.
+An AI-based evaluator was considered because an LLM can understand free-form design explanations and generate qualitative feedback.
 
-2. Domain Modeling - Attempt, Submission, Evaluation
+### Decision
 
-What was suggested: Don't model a learner's complete practice cycle as a mutable object; keep the attempt, the submitted snapshot, and the evaluation result, separate.
+For the MVP, I used a deterministic evaluator based on a defined set of evaluation dimensions.
 
-Accepted: Three distinct domain entities - Attempt, Submission, Evaluation.
+### Why
 
-Why: They change for different reasons and at different timelines. Submissions should be submitted and become immutable, while evaluations can fail or be retried separately. This also means "Edit & Try Again" create a new attempt (linked via predecessorAttemptId) than mutate an old one.
+- Results are reproducible.
+- The evaluator is easier to test.
+- Feedback can be traced to submitted evidence.
+- There is no external AI API dependency or API cost.
+- Failures are easier to reproduce and debug.
 
-3. Persistence before Evaluation
+### Final implementation
 
-What was suggested: Persist the learner's attempt and submission before running the evaluator, and not to evaluate first, then save only on success.
+The evaluator checks the submitted design against dimensions such as:
 
-Accepted: A UnitOfWork transaction that commits the Attempt, Submission and an initial Evaluation record (with status: evaluating) atomically, and runs the evaluation logic.
+- Requirement Coverage
+- Responsibility Assignment
+- Structure and Coupling
+- Behavioral Coherence
+- Extensibility and Rationale
 
-Why: Evaluation can fail independently of the learner's design quality (timeouts, etc). The platform should never lose a learner's submitted design because the evaluator crashed. It also allows for the retry API on evaluation_failed state, without requiring resubmission.
+A future LLM evaluator can be added behind the evaluator boundary without changing the main learner workflow.
 
-4. Evaluator Boundary
+## 2. Separating Submission from Evaluation
 
-What was suggested: Keep evaluation behind an interface/port rather than directly calling one evaluator implementation from the practice flow.
+### Problem
 
-Accepted: An Evaluator port implemented by the DeterministicEvaluator and DefaultRubricPolicy.
+A learner's design should not be lost if evaluation fails.
 
-Why: The assignment explicitly asks how the product could support a different evaluation approach (e.g. an LLM-based evaluator) in the future. Keeping an evaluator behind a port means it can be swapped without touching the use-cases or the practice flow.
+### AI-assisted consideration
 
-5. Structured Design Evidence instead of Free Text
+Different ways of connecting submission and evaluation were considered, including treating evaluation as part of the submission operation.
 
-What was suggested: Expose structured evidence for evaluation, rather than asking an evaluator an unconstrained question like "is this a good design?"
+### Decision
 
-Accepted: A DesignEvidence value object with explicit sections - entities, responsibilities, relationships, behaviors, design decisions, interfaces and assumptions.
+I kept submission persistence separate from evaluation.
 
-Why: This exposes the learner's reasoning to the evaluation, and allows for feedback to be tied to specific submitted evidence, and a normalized representation of evidence, potentially supporting other submission formats (diagrams) in future without redesigning the evaluation input.
+### Why
 
-6. Rejecting One-size-fits-all Grading
+The submitted design is valuable even when the evaluator fails. This also makes retry behavior possible without asking the learner to submit the design again.
 
-What was suggested: Avoid a single reference solution or 100-point score as the evaluator's primary mechanism.
+### Final flow
 
-Accepted: The evaluator outputs structured, qualitative findings across rubric dimensions (prioritized, secondary, optional), rather than comparing the submission's class names against one canonical "correct" design.
+```text
+Submit Design
+      ↓
+Persist Attempt + Submission
+      ↓
+Run Evaluation
+      ↓
+Completed / Failed
+```
 
-Why: LLD questions have many valid solutions. Punishing a learner for choosing a different, but defensible, abstraction would defeat the point of the platform.
+The submission remains available when evaluation fails.
 
-7. Debugging SQLite Persistence
+## 3. Revision Creates a New Attempt
 
-Used to debug SQLite integration issues. Identified that JS Date objects need to be converted to ISO strings when persisting and parsed back to Date objects when reading, as better-sqlite3 does not accept JS Date objects as bind parameters.
+### Problem
 
-Verified: The change was validated against the project's real SQLite integration tests (server/test/infrastructure-test.js, server/test/integration-test.js), not based purely on the AI suggestion.
+A learner may want to improve a design after receiving feedback.
 
-8. API Development and Testing
+### AI-assisted consideration
 
-Used to review REST API structure and debug API-related issues during development. The APIs were verified with manual testing (Postman) and automated testing (Vitest + Supertest project test suite).
+Two approaches were considered:
 
-9. Documentation
+- Update the existing submission.
+- Create a new attempt containing the revised design.
 
-Used to help organize the README, explain the project structure, and improve the wording of technical documentation, including trimming away unnecessary theory, to ensure the documentation stays focused on the actual implementation, and not generic LLD descriptions.
+### Decision
 
----
+A revision creates a new attempt.
 
-What I Rejected or Didn't Implement
+```text
+Attempt 1
+   ↓
+Attempt 2
+   ↓
+Attempt 3
+```
 
-The following AI suggestions were intentionally left out of the MVP, for scope reasons - the assignment is a two-day prototype, and they would add time without materially improving the core learner journey:
+Each revised attempt can keep a reference to its predecessor.
 
-Microservices
+### Why
 
-Kafka or another message broker
+This preserves the learner's history and makes it possible to compare how the design changed over time.
+It also avoids overwriting the original submission and keeps evaluation results attached to the correct version.
 
-Kubernetes
+## 4. Structured Text as the MVP Submission Format
 
-Distributed workers/background job queue
+### Problem
 
-Authentication
+The platform needs enough design information to evaluate LLD thinking without spending most of the assignment time building a complex submission editor.
 
-A full diagram editor
+### AI-assisted consideration
 
-Code execution sandbox
+Possible submission formats included code, diagrams, free-form text, and structured text.
 
-Production LLM orchestration
+### Decision
 
-Complex analytics
+The MVP uses structured textual design evidence.
+The submission captures:
 
-Automatic retry/backoff policies
+- Entities
+- Responsibilities
+- Relationships
+- Behaviors
+- Design Decisions
+- Interfaces
+- Assumptions
 
----
+### Why
 
-How AI Output Was Reviewed
+This provides enough evidence for the current evaluation dimensions while keeping the implementation focused on the core learner journey.
+It also avoids adding unnecessary complexity such as:
 
-AI suggestions were never accepted as is, in code. For every meaningful AI-assisted change, the following was done:
+- UML/diagram editing
+- Diagram parsing
+- Code execution
+- Sandboxed execution environments
 
-Check if the suggested change aligns with the assignment brief.
+A richer submission format can be introduced later without changing the overall attempt/evaluation model.
 
-Verify if the change preserves the existing domain boundaries.
+## 5. Simple Modular Backend Instead of Distributed Services
 
-Apply the change to the project.
+### Problem
 
-Run the relevant domain, application, infrastructure, integration or API tests to verify behavior.
+The project needs clear boundaries between the API, application logic, domain logic, and persistence layer.
 
-Check the resulting API or database behavior manually, if relevant (e.g. with Postman).
+### AI-assisted consideration
 
-Fix or revert the change, if it does not match the project's actual requirements.
+A more distributed architecture could separate problems, submissions, and evaluation into independent services.
 
-Verification specifically included:
+### Decision
 
-Domain unit tests (server/test/domain-test.js)
+I kept the MVP as a modular backend rather than introducing microservices.
 
-Application use-case tests (server/test/application-test.js)
+```text
+React Client
+     ↓
+Express API
+     ↓
+Application Use Cases
+     ↓
+Domain
+     ↓
+Infrastructure
+     ↓
+SQLite
+```
 
-Infrastructure/repository tests (server/test/infrastructure-test.js)
+### Why
 
-SQLite integration test (server/test/integration-test.js)
+The assignment is primarily an LLD/domain-design exercise. A distributed architecture would add operational complexity without improving the core learner experience for this MVP.
+The current boundaries still allow the evaluator, persistence layer, or other components to evolve independently.
 
-Full Vitest suite
+## AI Tools and Development Assistance
 
-Manual API testing with Postman
+AI assistance was used in areas including:
 
----
+- Exploring implementation approaches.
+- Reviewing frontend and backend structure.
+- Debugging API and routing issues.
+- Improving error handling and UI states.
+- Reviewing edge cases and workflow behavior.
+- Generating implementation drafts that were then adapted and tested.
 
-What Was Done Manually
+AI-generated code was not treated as automatically correct. Code was reviewed, integrated into the existing project structure, and tested through the application workflow.
 
-I was responsible for making design decisions about:
+## What I Kept Under My Own Review
 
-Project structure and layering
+I specifically reviewed:
 
-Attempt, Submission and Evaluation separation
+- Whether the implementation matched the assignment scope.
+- Whether domain responsibilities were placed in the correct layer.
+- Whether submission history was preserved.
+- Whether evaluation failure could be retried safely.
+- Whether revision created a new attempt rather than overwriting history.
+- Whether the frontend flow matched the intended learner journey.
+- Whether the final project avoided unnecessary infrastructure for the MVP.
 
-What data is represented in a design submission (DesignEvidence)
+## Limitations of AI-Assisted Development
 
-Rubric dimensions used by the MVP evaluator
+AI suggestions can be technically valid but still be wrong for the project's scope.
+For this project, I avoided accepting suggestions simply because they made the architecture more sophisticated. Decisions were evaluated based on:
 
-Retry behavior for failed evaluations
+1. Assignment requirements.
+2. MVP scope.
+3. Simplicity.
+4. Testability.
+5. Maintainability.
+6. Actual behavior of the running system.
 
-Which AI suggestions were appropriate for the assignment, and which are out of scope.
-
----
-
-Limitations of AI Assistance
-
-AI suggestions sometimes required correction. For example, some initial implementation would cause incorrect data types to be persisted into SQLite, or make incorrect assumptions about domain object serialization/deserialization. This was done through testing, not trust - to reinforce that generated code should be verified, not blindly assumed to be correct.
-
----
-
-Conclusion
-
-AI was used as a development and reasoning assistant, not as a replacement for implementation, testing and engineering decisions. The final implementation was reviewed, and modified where necessary, before being submitted as part of the assignment.
+The final implementation is therefore a reviewed and tested result of AI-assisted development, rather than an unmodified AI-generated project.
